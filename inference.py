@@ -30,21 +30,25 @@ class GeoTr_Seg(nn.Module):
 
         bm = self.GeoTr(x)
         bm = (2 * (bm / 286.8) - 1) * 0.99
-        
+
         return bm
         
 
 def reload_model(model, path=""):
     if not bool(path):
         return model
-    else:
-        model_dict = model.state_dict()
-        pretrained_dict = torch.load(path, map_location='cuda:0')
-        print(len(pretrained_dict.keys()))
-        pretrained_dict = {k[7:]: v for k, v in pretrained_dict.items() if k[7:] in model_dict}
-        print(len(pretrained_dict.keys()))
-        model_dict.update(pretrained_dict)
-        model.load_state_dict(model_dict)
+    else:        
+        try:
+            model.load_state_dict(torch.load(path, map_location='cuda:0'))
+            print("ALL KEYS MATCHED")
+        except:
+            model_dict = model.state_dict()
+            pretrained_dict = torch.load(path, map_location='cuda:0')
+            print(len(pretrained_dict.keys()))
+            pretrained_dict = {k[7:]: v for k, v in pretrained_dict.items() if k[7:] in model_dict}
+            print(len(pretrained_dict.keys()))
+            model_dict.update(pretrained_dict)
+            model.load_state_dict(model_dict)
 
         return model
         
@@ -53,13 +57,17 @@ def reload_segmodel(model, path=""):
     if not bool(path):
         return model
     else:
-        model_dict = model.state_dict()
-        pretrained_dict = torch.load(path, map_location='cuda:0')
-        print(len(pretrained_dict.keys()))
-        pretrained_dict = {k[6:]: v for k, v in pretrained_dict.items() if k[6:] in model_dict}
-        print(len(pretrained_dict.keys()))
-        model_dict.update(pretrained_dict)
-        model.load_state_dict(model_dict)
+        try:
+            model.load_state_dict(torch.load(path, map_location='cuda:0'))
+            print("ALL KEYS MATCHED")
+        except:
+            model_dict = model.state_dict()
+            pretrained_dict = torch.load(path, map_location='cuda:0')
+            print(len(pretrained_dict.keys()))
+            pretrained_dict = {k[6:]: v for k, v in pretrained_dict.items() if k[6:] in model_dict}
+            print(len(pretrained_dict.keys()))
+            model_dict.update(pretrained_dict)
+            model.load_state_dict(model_dict)
 
         return model
         
@@ -67,7 +75,7 @@ def reload_segmodel(model, path=""):
 def rec(opt):
     # print(torch.__version__) # 1.5.1
     img_list = os.listdir(opt.distorrted_path)  # distorted images list
-
+    img_list = [x for x in img_list if 'jpg' in x or 'png' in x]
     if not os.path.exists(opt.gsave_path):  # create save path
         os.mkdir(opt.gsave_path)
     if not os.path.exists(opt.isave_path):  # create save path
@@ -88,7 +96,8 @@ def rec(opt):
     IllTr_model.eval()
   
     for img_path in img_list:
-        name = img_path.split('.')[-2]  # image name
+        name = img_path.split('.')[:-1]  # image name
+        name = ''.join(name)
 
         img_path = opt.distorrted_path + img_path  # read image and to tensor
         im_ori = np.array(Image.open(img_path))[:, :, :3] / 255. 
@@ -109,8 +118,9 @@ def rec(opt):
             
             out = F.grid_sample(torch.from_numpy(im_ori).permute(2,0,1).unsqueeze(0).float(), lbl, align_corners=True)
             img_geo = ((out[0]*255).permute(1, 2, 0).numpy()).astype(np.uint8)
-            io.imsave(opt.gsave_path + name + '_geo' + '.png', img_geo)  # save
-            
+            tgt_path = opt.gsave_path +name + '_geo' + '.png'
+            io.imsave(tgt_path, img_geo)  # save
+            print(tgt_path)
             # illumination rectification
             if opt.ill_rec:
                 ill_savep = opt.isave_path + name + '_ill' + '.png'
@@ -120,12 +130,17 @@ def rec(opt):
 
 
 def main():
+    tr_path = 'geo_tr_final.pth' # './model_pretrained/geotr.pth'
+    seg_path = 'geo_seg_final.pth' # './model_pretrained/seg.pth'
+    tr_path =  './model_pretrained/geotr.pth'
+    seg_path = './model_pretrained/seg.pth'
+    #tr_path =  './model_pretrained/geotr.pth' #'geo_tr_final.pth' # 
     parser = argparse.ArgumentParser() 
-    parser.add_argument('--distorrted_path',  default='./distorted/')
+    parser.add_argument('--distorrted_path',  default='./data/imgs/')
     parser.add_argument('--gsave_path',  default='./geo_rec/')
     parser.add_argument('--isave_path',  default='./ill_rec/')
-    parser.add_argument('--Seg_path',  default='./model_pretrained/seg.pth')
-    parser.add_argument('--GeoTr_path',  default='./model_pretrained/geotr.pth')
+    parser.add_argument('--Seg_path',  default=seg_path)
+    parser.add_argument('--GeoTr_path',  default=tr_path)
     parser.add_argument('--IllTr_path',  default='./model_pretrained/illtr.pth')
     parser.add_argument('--ill_rec',  default=False)
     

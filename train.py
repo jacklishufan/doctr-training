@@ -86,12 +86,13 @@ def rec(opt):
     reload_model(IllTr_model, opt.IllTr_path)
     
     dataset = Doc3DDataset()
-    loader = DataLoader(dataset,shuffle=True,batch_size=1)
+    batch_size = 1
+    num_epochs = 30
+    loader = DataLoader(dataset,shuffle=True,batch_size=batch_size)
     # To eval mode
     GeoTr_Seg_model.train()
     IllTr_model.train()
 
-    num_epochs = 30
     optimizer = AdamW(GeoTr_Seg_model.parameters(),lr=1e-4, weight_decay=1e-4)
     for epoch in range(num_epochs):
         #losses = []
